@@ -1,0 +1,12 @@
+# map_projector_info.yaml
+# projector_type: MGRS
+# vertical_datum: WGS84
+# mgrs_grid: 17TKG
+
+# map_projector_info.yaml
+projector_type: LocalCartesianUTM
+vertical_datum: WGS84
+map_origin:
+  latitude: 42.299138
+  longitude: -83.699245
+  altitude: 0.0 # [m]
