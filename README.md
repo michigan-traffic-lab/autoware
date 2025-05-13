@@ -4,9 +4,10 @@ This is the Mcity-adapted version of Autoware Universe, based on the October 202
 
 ## Installation
 ```bash
-# Clone the repository
+# Clone the repository.
 git clone https://github.com/QZJGeorge/autoware.git
 
+# For the following instructions, we assume Autoware is cloned into your home directory.
 cd autoware
 
 # Install Autoware Dependencies using the provided Ansible script. 
@@ -28,14 +29,14 @@ rosdep update
 cd autoware
 rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
 
-# Build packages
+# Build packages (this can take 1-2 hours)
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Source the autoware workspace
 . install/setup.bash
 ```
 
-## Launch Terasim Autoware
+## Launch Autoware
 To launch the simulation
 ```bash
 ros2 launch autoware_launch planning_simulator.launch.xml map_path:=$HOME/autoware/map vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit lanelet2_map_file:=lanelet2_mcity_v43.osm
@@ -49,4 +50,15 @@ ros2 launch autoware_launch autoware.launch.xml map_path:=$HOME/autoware/map veh
 To Replay a rosbag
 ```bash
 ros2 launch autoware_launch logging_simulator.launch.xml map_path:=$HOME/autoware/map vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit lanelet2_map_file:=lanelet2_mcity_v43.osm
+```
+
+## Post Installation Instructions (Optional)
+To automatically source Autoware and avoid manual sourcing each time, follow these steps:
+
+```bash
+# Open your bash configuration file
+sudo gedit ~/.bashrc
+
+# Add the following line at the end of the file
+source $HOME/autoware/install/setup.bash
 ```
