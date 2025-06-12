@@ -41,6 +41,5 @@ rclcpp_components_register_node(autoware_interface_demo_realcar_component
 
 ament_auto_package(
   INSTALL_TO_SHARE
-  launch  
   include
 )
