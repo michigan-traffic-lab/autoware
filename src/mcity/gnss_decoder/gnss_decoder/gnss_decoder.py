@@ -1,5 +1,8 @@
+import os
 import utm
 import time
+import math
+import yaml
 import rclpy
 
 import numpy as np
@@ -17,6 +20,37 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 
 from terasim_cosim.constants import *
 from terasim_cosim.redis_client_wrapper import create_redis_client
+
+
+def latlon_to_utm(lat, lon):
+    """Convert latitude/longitude to UTM coordinates (Zone 17N for Michigan)."""
+    # WGS84 parameters
+    a = 6378137.0  # equatorial radius
+    e = 0.0818191908426  # eccentricity
+    k0 = 0.9996  # scale factor
+
+    lat_rad = math.radians(lat)
+    lon_rad = math.radians(lon)
+
+    # UTM zone 17 central meridian is -81 degrees
+    lon0 = math.radians(-81)
+
+    n = a / math.sqrt(1 - e**2 * math.sin(lat_rad)**2)
+    t = math.tan(lat_rad)**2
+    c = (e**2 / (1 - e**2)) * math.cos(lat_rad)**2
+    A = (lon_rad - lon0) * math.cos(lat_rad)
+
+    m = a * (
+        (1 - e**2/4 - 3*e**4/64 - 5*e**6/256) * lat_rad
+        - (3*e**2/8 + 3*e**4/32 + 45*e**6/1024) * math.sin(2*lat_rad)
+        + (15*e**4/256 + 45*e**6/1024) * math.sin(4*lat_rad)
+        - (35*e**6/3072) * math.sin(6*lat_rad)
+    )
+
+    easting = k0 * n * (A + (1-t+c)*A**3/6 + (5-18*t+t**2+72*c-58*(e**2/(1-e**2)))*A**5/120) + 500000
+    northing = k0 * (m + n * math.tan(lat_rad) * (A**2/2 + (5-t+9*c+4*c**2)*A**4/24 + (61-58*t+t**2+600*c-330*(e**2/(1-e**2)))*A**6/720))
+
+    return easting, northing
 
 
 class GnssDecoder(Node):
@@ -46,9 +80,54 @@ class GnssDecoder(Node):
         key_value_config = {CAV_INFO: redis_msgs.ActorDict}
         self.redis_client = create_redis_client(key_value_config=key_value_config)
 
-        self.UTM_offset = [-277497.10, -4686518.71]
+        # Map path for reading map_projector_info.yaml
+        self.declare_parameter("map_path", os.path.expanduser("~/autoware/map"))
+        self.map_path = self.get_parameter("map_path").value
+
+        # Load UTM offset dynamically from map_projector_info.yaml
+        self.UTM_offset = self._load_utm_offset_from_map()
 
         print("Reading GNSS info and set to cosim...")
+
+    def _load_utm_offset_from_map(self):
+        """Load UTM offset from map_projector_info.yaml in the map directory."""
+        yaml_path = os.path.join(self.map_path, "map_projector_info.yaml")
+
+        # Default fallback: Mcity coordinates
+        default_offset = [-277497.10, -4686518.71]
+
+        try:
+            with open(yaml_path, 'r') as f:
+                config = yaml.safe_load(f)
+
+            if 'map_origin' in config:
+                lat = config['map_origin']['latitude']
+                lon = config['map_origin']['longitude']
+
+                easting, northing = latlon_to_utm(lat, lon)
+                utm_offset = [-easting, -northing]
+
+                self.get_logger().info(
+                    f"Loaded map origin from {yaml_path}: lat={lat}, lon={lon}"
+                )
+                self.get_logger().info(
+                    f"Computed UTM offset: [{utm_offset[0]:.2f}, {utm_offset[1]:.2f}]"
+                )
+                return utm_offset
+            else:
+                self.get_logger().warn(
+                    f"No 'map_origin' found in {yaml_path}, using default Mcity offset"
+                )
+        except FileNotFoundError:
+            self.get_logger().warn(
+                f"Map projector info not found at {yaml_path}, using default Mcity offset"
+            )
+        except Exception as e:
+            self.get_logger().error(
+                f"Error loading map projector info: {e}, using default Mcity offset"
+            )
+
+        return default_offset
 
     def on_timer(self):
         if self.saved_nav_msg and self.saved_odom_msg and self.saved_imu_msg:

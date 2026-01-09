@@ -23,6 +23,7 @@ setup(
     entry_points={
         "console_scripts": [
             "autoware_vehicle_plugin = autoware_cosim.autoware_vehicle_plugin:main",
+            "autoware_vehicle_plugin_http = autoware_cosim.autoware_vehicle_plugin_http:main",
             "autoware_vehicle_report = autoware_cosim.autoware_vehicle_report:main",
             "autoware_tls_plugin = autoware_cosim.autoware_tls_plugin:main",
             "autoware_dummy_grid = autoware_cosim.autoware_dummy_grid:main",
